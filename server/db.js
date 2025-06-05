@@ -1,22 +1,21 @@
-// configure how to connect to ur database
-
-const Pool = require("pg").Pool;
+const { Pool } = require("pg");
 require("dotenv").config();
 
-const devConfig = {
+const pool = new Pool({
   user: process.env.PG_USER,
-  password: process.env.PG_PASSWORD,
   host: process.env.PG_HOST,
   database: process.env.PG_DATABASE,
+  password: process.env.PG_PASSWORD,
   port: process.env.PG_PORT,
-};
+});
 
-const proConfig = {
-  connectionString: process.env.DATABASE_URL, //heroku addons
-};
-
-const pool = new Pool(
-    process.env.NODE_ENV === "production" ? proConfig : devConfig
-);
+// Тест подключения
+pool.query("SELECT NOW()", (err, res) => {
+  if (err) {
+    console.error("Ошибка подключения к БД:", err.stack);
+  } else {
+    console.log("БД подключена:", res.rows[0]);
+  }
+});
 
 module.exports = pool;

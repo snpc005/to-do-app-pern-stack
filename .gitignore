@@ -1,6 +1,6 @@
-# dependencies
-/node_modules
-
-
-# misc
+node_modules/
+build/
 .env
+.DS_Store
+*.log
+.vs/

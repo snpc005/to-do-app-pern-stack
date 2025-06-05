@@ -1,75 +1,137 @@
-import React, { Fragment, useEffect, useState } from "react";
+import React, { useEffect, useState } from 'react';
+import { FiEdit2, FiTrash2, FiLogOut } from 'react-icons/fi';
+import { getTodos, deleteTodo, updateTodo, createTodo } from '../api/todoApi';
+import styles from '../App.module.css';
 
-import EditTodo from "./EditTodo";
-
-const ListTodos = () => {
-  const [todos, setTodos] = useState([]); //initially an empty array [] because we want to get all todos
-
-  //delete todo function
-  const deleteTodo = async (id) => {
-    try {
-      const deleteTodo = await fetch(`/todos/${id}`, {
-        method: "DELETE",
-      });
-
-      setTodos(todos.filter((todo) => todo.todo_id !== id));
-    } catch (err) {
-      console.error(err.message);
-    }
-  };
-
-  //get all todos
-  const getTodos = async () => {
-    try {
-      const response = await fetch("/todos");
-      const jsonData = await response.json();
-
-      setTodos(jsonData);
-    } catch (err) {
-      console.error(err.message);
-    }
-  };
+const ListTodos = ({ user, onLogout }) => {
+  const [todos, setTodos] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false); // Состояние для модального окна
+  const [newTodoText, setNewTodoText] = useState(''); // Текст новой задачи
 
   useEffect(() => {
-    getTodos();
+    fetchTodos();
   }, []);
 
+  const fetchTodos = async () => {
+    try {
+      setLoading(true);
+      const data = await getTodos();
+      setTodos(data);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddTodo = async (e) => {
+    e.preventDefault();
+    if (!newTodoText.trim()) return; // Проверяем, что текст не пустой
+    try {
+      await createTodo(newTodoText);
+      setNewTodoText(''); // Очищаем поле
+      setIsModalOpen(false); // Закрываем модальное окно
+      await fetchTodos();
+    } catch (error) {
+      console.error('Ошибка добавления:', error);
+    }
+  };
+
+  const toggleComplete = async (id, currentStatus) => {
+    await updateTodo(id, { completed: !currentStatus });
+    fetchTodos();
+  };
+
+  const handleDelete = async (id) => {
+    await deleteTodo(id);
+    setTodos(todos.filter(todo => todo.todo_id !== id));
+  };
+
   return (
-    <>
-      {""}
-      <table className="table mt-5 text-center">
-        <thead>
-          <tr>
-            <th>Description</th>
-            <th>Edit</th>
-            <th>Delete</th>
-          </tr>
-        </thead>
-        <tbody>
-          {/* <tr>
-        <td>John</td>
-        <td>Doe</td>
-        <td>john@example.com</td>
-      </tr> */}
-          {todos.map((todo) => (
-            <tr key={todo.todo_id}>
-              <td>{todo.description}</td>
-              <td>
-                <EditTodo todo={todo} />
-              </td>
-              <td>
-                <button
-                  className="btn btn-danger"
-                  onClick={() => deleteTodo(todo.todo_id)}
-                >
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+    <div className={styles.container}>
+      <div className={styles.headerContainer}>
+        <h1 className={styles.header}>
+          🕒 Мои задачи
+        </h1>
+        <div className={styles.userControls}>
+          <span>{user}</span>
+          <button onClick={onLogout} className={styles.logoutButton}>
+            <FiLogOut />
+          </button>
+        </div>
+      </div>
+
+      <div className={styles.addForm}>
+        <button
+          type="button"
+          className={styles.addButton}
+          onClick={() => setIsModalOpen(true)} // Открываем модальное окно
+        >
+          Добавить
+        </button>
+      </div>
+
+      {/* Модальное окно */}
+      {isModalOpen && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <h2 className={styles.modalHeader}>Новая задача</h2>
+            <input
+              type="text"
+              value={newTodoText}
+              onChange={(e) => setNewTodoText(e.target.value)}
+              placeholder="Введите текст задачи..."
+              className={styles.modalInput}
+              autoFocus
+            />
+            <div className={styles.modalActions}>
+              <button
+                onClick={handleAddTodo}
+                className={styles.modalButton}
+                disabled={!newTodoText.trim()} // Отключаем кнопку, если текст пустой
+              >
+                Подтвердить
+              </button>
+              <button
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setNewTodoText('');
+                }}
+                className={`${styles.modalButton} ${styles.cancelButton}`}
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ul className={styles.todoList}>
+        {todos.map((todo) => (
+          <li key={todo.todo_id} className={styles.todoItem}>
+            <input
+              type="checkbox"
+              className={styles.todoCheckbox}
+              checked={todo.completed}
+              onChange={() => toggleComplete(todo.todo_id, todo.completed)}
+            />
+            <span className={`${styles.todoText} ${todo.completed ? 'completed' : ''}`}>
+              {todo.description}
+            </span>
+            <div className={styles.actions}>
+              <button className={styles.actionButton}>
+                <FiEdit2 /> Редактировать
+              </button>
+              <button
+                className={`${styles.actionButton} ${styles.delete}`}
+                onClick={() => handleDelete(todo.todo_id)}
+              >
+                <FiTrash2 /> Удалить
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 };
 
