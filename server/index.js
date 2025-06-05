@@ -6,6 +6,55 @@ const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
 const path = require('path');
 
+const express = require('express');
+const cors = require('cors');
+const pool = require('./db');
+const app = express();
+
+// Настройка CORS
+app.use(cors({
+  origin: 'https://dailypl-client.onrender.com',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+app.use(express.json());
+
+// Эндпоинт для создания задачи
+app.post('/api/todos', async (req, res) => {
+  try {
+    const { description } = req.body;
+    const userId = req.user?.id; // Если требуется авторизация
+    if (!description) {
+      return res.status(400).json({ error: 'Описание задачи обязательно' });
+    }
+
+    const newTodo = await pool.query(
+      'INSERT INTO todo (description, user_id) VALUES ($1, $2) RETURNING *',
+      [description, userId || 1] // Заглушка для user_id, если авторизация не настроена
+    );
+    res.status(201).json(newTodo.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+// Эндпоинт для получения задач
+app.get('/api/todos', async (req, res) => {
+  try {
+    const userId = req.user?.id || 1; // Заглушка
+    const todos = await pool.query('SELECT * FROM todo WHERE user_id = $1', [userId]);
+    res.json(todos.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+const PORT = process.env.PORT || 5432;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
